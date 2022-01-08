@@ -1,0 +1,65 @@
+# Maintainer: wowario <wowario[at]protonmail[dot]com>
+
+pkgname=igwt-git
+pkgver=0.8.0.0
+pkgrel=1
+pkgdesc="In God We Trust: a fairly available privacy-centric art currency with a supply"
+license=('BSD')
+arch=('x86_64')
+url="https://igwt.org/"
+depends=('boost-libs' 'libunwind' 'openssl' 'readline' 'zeromq' 'pcsclite' 'hidapi' 'protobuf')
+makedepends=('git' 'cmake' 'boost')
+source=(
+    "${pkgname}"::"git+https://github.com/igwt/igwt#tag=v${pkgver}"
+    "git+https://github.com/monero-project/unbound.git"
+    "git+https://github.com/monero-project/miniupnp.git"
+    "git+https://github.com/Tencent/rapidjson.git"
+    "git+https://github.com/trezor/trezor-common.git"
+    "git+https://github.com/igwt/RandomWOW.git"
+    "igwt.sysusers"
+    "igwt.tmpfiles")
+sha512sums=('SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+
+prepare() {
+  cd "${pkgname}"
+  git submodule init
+  git config submodule.external/unbound.url "$srcdir/unbound"
+  git config submodule.external/miniupnp.url "$srcdir/miniupnp"
+  git config submodule.external/rapidjson.url "$srcdir/rapidjson"
+  git config submodule.external/trezor-common.url "$srcdir/trezor-common"
+  git config submodule.external/RandomWOW.url "$srcdir/RandomWOW"
+  git submodule update
+}
+
+build() {
+  cd "${pkgname}"
+  mkdir -p build && cd build
+  cmake -D BUILD_TESTS=OFF -D CMAKE_BUILD_TYPE=release -D ARCH=default ../
+  make
+}
+
+package() {
+  backup=('etc/igwtd.conf')
+
+  cd "${pkgname}"
+  install -Dm644 "LICENSE" -t "${pkgdir}/usr/share/licenses/${pkgname}"
+
+  install -Dm644 "utils/conf/igwtd.conf" "${pkgdir}/etc/igwtd.conf"
+  install -Dm644 "utils/systemd/igwtd.service" "${pkgdir}/usr/lib/systemd/system/igwtd.service"
+  install -Dm644 "../igwt.sysusers" "${pkgdir}/usr/lib/sysusers.d/igwt.conf"
+  install -Dm644 "../igwt.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/igwt.conf"
+
+  install -Dm755 "build/bin/igwt-wallet-cli" \
+                 "build/bin/igwt-wallet-rpc" \
+                 "build/bin/igwtd" \
+                 -t "${pkgdir}/usr/bin"
+}
+
+# vim: ts=2 sw=2 et:
